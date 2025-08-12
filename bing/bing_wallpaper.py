@@ -68,29 +68,7 @@ async def get_wallpaper_info() -> Optional[Dict]:
 #     except Exception as e:
 #         print(f"下载图片失败: {e}")
 #         return None
-async def cache_wallpaper(image_url: str):
-    """缓存壁纸到内存"""
-    """异步缓存壁纸到内存"""
-    try:
-        print(f"获取壁纸: {image_url}")
-        async with aiohttp.ClientSession() as session:
-            async with session.get(image_url, headers=REQUEST_HEADERS, timeout=30) as response:
-                response.raise_for_status()
 
-                # 使用内存中的图片数据，避免保存到文件
-                img_data = io.BytesIO()
-                while True:
-                    chunk = await response.content.read(8192)
-                    if not chunk:
-                        break
-                    img_data.write(chunk)
-                img_data.seek(0)
-                print(f"图片获取成功,大小为: {math.ceil(len(img_data.getvalue()) / 1024)} KB")
-                return img_data
-
-    except Exception as e:
-        print(f"下载壁纸失败: {str(e)}")
-        return None
 
 def set_wallpaper_windows(image_path):
     try:
@@ -182,7 +160,7 @@ class WallpaperApp:
         # 清空当前显示
         self.info_text.config(state=tk.NORMAL)
         self.info_text.delete(1.0, tk.END)
-        self.info_text.insert(tk.END, "正在获取壁纸...")
+        self.info_text.insert(tk.END, "正在获取壁纸...\n")
         self.info_text.config(state=tk.DISABLED)
         self.window.update()
 
@@ -201,7 +179,7 @@ class WallpaperApp:
         # wallpaper_photo = download_wallpaper(self.current_wallpaper_url,save_path) //写入文件
         if self.current_wallpaper_data:
             self.current_wallpaper_data.close()
-        wallpaper_photo = await cache_wallpaper(self.current_wallpaper_url) # 缓存图片
+        wallpaper_photo = await self.cache_wallpaper(self.current_wallpaper_url) # 缓存图片
         if not wallpaper_photo:
             messagebox.showerror("错误", "下载壁纸失败")
             self.info_text.delete(1.0, tk.END)
@@ -228,7 +206,7 @@ class WallpaperApp:
 
             # 调整大小以适应窗口
             max_size = (800, 600)
-            img.thumbnail(max_size, Image.LANCZOS)
+            img.thumbnail(max_size, Image.Resampling.LANCZOS)
 
             # 转换为Tkinter可用的格式
             photo = ImageTk.PhotoImage(img)
@@ -260,6 +238,45 @@ class WallpaperApp:
         except Exception as e:
             print(f"获取壁纸信息失败: {str(e)}")
 
+    async def cache_wallpaper(self,image_url: str):
+        """缓存壁纸到内存"""
+        """异步缓存壁纸到内存"""
+        try:
+            print(f"获取壁纸: {image_url}")
+            async with aiohttp.ClientSession() as session:
+                async with session.get(image_url, headers=REQUEST_HEADERS, timeout=30) as response:
+                    # 获取响应信息
+                    content_length = response.content_length
+                    print(f"响应长度: {content_length}")
+                    print(f"状态码: {response.status}")
+                    response.raise_for_status()
+
+                    # 使用内存中的图片数据
+                    img_data = io.BytesIO()
+                    count = 1
+                    chunk_size = 0
+                    while True:
+                        chunk = await response.content.read(8192)
+                        if not chunk:
+                            break
+                        chunk_size += len(chunk)
+                        img_data.write(chunk)
+                        #     展示加载进度
+                        if count % 5 ==0:
+                            progress = math.ceil((chunk_size / content_length) * 100)
+                            self.info_text.config(state=tk.NORMAL)
+                            self.info_text.insert(tk.END, f"加载进度: {progress} %\n")
+                            self.info_text.see(tk.END) # 滚动到底部
+                            self.info_text.config(state=tk.DISABLED)  # 恢复禁用状态
+                            self.window.update()
+                        count+=1
+                    img_data.seek(0)
+                    print(f"图片获取成功,大小为: {math.ceil(len(img_data.getvalue()) / 1024)} KB")
+                    return img_data
+
+        except Exception as e:
+            print(f"下载壁纸失败: {str(e)}")
+            return None
     def set_as_wallpaper(self):
         """将当前预览的壁纸设置为桌面背景"""
         if not self.current_wallpaper_data or not self.current_wallpaper_url:
