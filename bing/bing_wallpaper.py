@@ -93,7 +93,7 @@ class WallpaperApp:
         self.next_button = None
         self.window = tk.Tk()
         self.window.title("必应每日壁纸")
-        self.window.geometry("1000x750")
+        self.window.geometry("1000x780")
         # 用于存储异步任务
         self.task = None
         self.running = False
@@ -205,7 +205,7 @@ class WallpaperApp:
             img = Image.open(img_data)
 
             # 调整大小以适应窗口
-            max_size = (800, 600)
+            max_size = (925, 520)
             img.thumbnail(max_size, Image.Resampling.LANCZOS)
 
             # 转换为Tkinter可用的格式
