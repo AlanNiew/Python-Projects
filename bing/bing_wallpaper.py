@@ -40,7 +40,7 @@ async def get_wallpaper_info() -> Optional[Dict]:
                 # 提取所有关键信息
                 return {
                     "url": ad_data.get("landscapeImage", {}).get("asset"),
-                    "title": ad_data.get("title", "未命名壁纸"),
+                    "title": ad_data.get("title", f"未命名壁纸_{int(time.time())}"),
                     "description": ad_data.get("description", "暂无描述"),
                     "copyright": ad_data.get("copyright", "未知作者")
                 }
@@ -98,6 +98,7 @@ class WallpaperApp:
         self.task = None
         self.running = False
         # 当前壁纸信息
+        self.wallpaper_info = None
         self.current_wallpaper_url = None
         self.current_wallpaper_data = None
 
@@ -165,32 +166,31 @@ class WallpaperApp:
         self.window.update()
 
         # 获取壁纸URL
-        wallpaper_info = await get_wallpaper_info()
-        if not wallpaper_info or not wallpaper_info["url"]:
+        self.wallpaper_info = await get_wallpaper_info()
+        self.current_wallpaper_url = self.wallpaper_info["url"]
+        if not self.wallpaper_info or not self.current_wallpaper_url:
             messagebox.showerror("错误", "无法获取壁纸链接")
             self.next_button.config(state=tk.NORMAL)
             print("无法获取有效的壁纸信息！")
             return
 
-        self.current_wallpaper_url = wallpaper_info["url"]
 
         # 下载并显示壁纸
         # save_path = f"wallpaper{int(time.time())}.jpg"
         # wallpaper_photo = download_wallpaper(self.current_wallpaper_url,save_path) //写入文件
         if self.current_wallpaper_data:
             self.current_wallpaper_data.close()
-        wallpaper_photo = await self.cache_wallpaper(self.current_wallpaper_url) # 缓存图片
-        if not wallpaper_photo:
+        self.current_wallpaper_data = await self.cache_wallpaper(self.current_wallpaper_url) # 缓存图片
+        if not self.current_wallpaper_data:
             messagebox.showerror("错误", "下载壁纸失败")
             self.info_text.delete(1.0, tk.END)
             self.info_text.insert(tk.END,"下载壁纸失败,换一张重试！")
             self.next_button.config(state=tk.NORMAL)
             return
-        self.current_wallpaper_data = wallpaper_photo
-        self.show_wallpaper_preview(wallpaper_photo)
+        self.show_wallpaper_preview(self.current_wallpaper_data)
 
         # 获取并显示壁纸信息
-        self.show_wallpaper_info(wallpaper_info)
+        self.show_wallpaper_info(self.wallpaper_info)
         self.set_button.config(state=tk.NORMAL)
         self.next_button.config(state=tk.NORMAL)
         self.save_button.config(state=tk.NORMAL)
@@ -318,8 +318,10 @@ class WallpaperApp:
             #     return
 
             # 将内存中的图片数据写入文件
-            file_name = f"wallpaper_{int(time.time())}.jpg"
+            file_name = f"wallpaper/{self.wallpaper_info['title']}.jpg"
             save_path = os.path.join(os.getcwd(), file_name)
+            # 目录不存在创建
+            Path(os.path.dirname(save_path)).mkdir(parents=True, exist_ok=True)
             with open(save_path, "wb") as f:
                 self.current_wallpaper_data.seek(0)
                 f.write(self.current_wallpaper_data.read())
