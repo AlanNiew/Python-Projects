@@ -1,2 +1,0 @@
-api-key = 你的API Key(格式：sk-xxx)
-app-id = 你的AppID
