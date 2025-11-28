@@ -1,0 +1,12 @@
+系统=system
+管理=management
+名字=name
+早=early
+睡=sleep
+起=rise
+中=chinese
+文=text
+翻=translate
+译=translate
+测=measure
+试=try
